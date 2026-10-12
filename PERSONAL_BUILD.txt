@@ -1,0 +1,54 @@
+游标 Youbiao 1.12.3-youbiao.1（版本号 1126）
+
+基于 ZCShou/GoGoGo master，源码归档提交：
+de0d596190c57b8ca71481f60ce6b9e50af5107f
+原项目：https://github.com/ZCShou/GoGoGo
+原作者版权与 GPL-3.0-only 许可证保持不变；本文件记录个人修改。
+
+2026-10-12 本次修改：
+- 应用显示名称、服务通知名称改为“游标”。
+- 使用新生成的定位点与方向箭头图标，提供 Android 自适应图标和单色通知/主题图标。
+- 使用用户独有的 RSA 4096 位签名密钥；不再使用上游公开私钥签名。
+- 签名配置从独立 signing.properties 加载，避免地图密钥插件把签名密码写进 BuildConfig。
+- 缺少签名配置时构建直接失败，不会回退到上游公开签名。
+
+保留此前个人版修复：
+- 拒绝失败定位回调中的无效坐标，用户选点后迟到的首次定位不再覆盖所选位置。
+- 尚未获得有效定位时给出提示并保留选点。
+- local.properties 配置个人百度 Android AK 与签名安全码。
+- 修复随附 SDK 的 SetIgnoreCacheException 方法名编译问题。
+- compileSdk 36，targetSdk 32，最低 Android 8.1，ARM64。
+- 声明 Android 16 页大小兼容模式。
+- 首次进入仅请求必要定位权限，搜索防抖、取消过时请求、无城市时搜索支持。
+- 修正手输 WGS84 经纬度顺序，释放悬浮窗搜索/计时器，处理服务空启动 Intent。
+- 关闭上游在线自动更新，避免个人版本被原版覆盖。
+
+签名与百度设置：
+包名保持 com.zcshou.gogogo。
+当前签名 SHA1：C9:86:B0:F1:87:5F:3E:99:0E:5A:77:56:01:A5:A4:7F:57:B6:3C:0C
+用户已在百度控制台更新签名，SDK 在线鉴权已实际返回 success。
+签名私钥与密码单独保存在个人签名备份中，不进入源码包。
+公开证书可用于核对指纹；私钥与密码不要随 APK 或源码分享。
+
+构建：
+1. 准备 JDK 17、Android SDK Platform 36、Build Tools 36.0.0、Gradle 8.13。
+2. 复制 local.properties.example 为 local.properties，填写 SDK 路径、百度 AK 与证书安全码。
+3. 复制 signing.properties.example 为 signing.properties，填写私钥路径、别名、密码。
+   签名密码不要写入 local.properties，以免被地图密钥插件打进 BuildConfig。
+4. ./gradlew :app:assembleRelease
+5. 输出 app/build/outputs/apk/release/Youbiao_1.12.3-youbiao.1_arm64-v8a_release.apk。
+
+验证：
+Android 16/API 36/ARM64/16KB 模拟器中，发布包的名称与图标、地图显示、
+在线地点搜索、选点后系统模拟 GPS 及停止流程均验证通过；SDK 鉴权成功。
+签名、APK 对齐和签名材料不进入 APK 的检查通过。
+尚未在红米 K80 Pro 实机验证。
+联网测试的 SDK 服务可能有生效延迟；测试环境需具有可用 IPv4 网络。
+
+框架级发布包测试：
+./gradlew :app:assembleDebugAndroidTest -PtestRunner=com.zcshou.gogogo.ReleaseSmokeInstrumentation
+在隔离模拟器安装发布 APK 与测试 APK，并授权定位、通知、悬浮窗和模拟位置权限。
+adb shell am instrument -w -r -e mapWaitMs 15000 com.zcshou.gogogo.test/com.zcshou.gogogo.ReleaseSmokeInstrumentation
+鉴权诊断入口为 BaiduAuthInstrumentation，不输出 AK 或鉴权令牌。
+
+开源归档排除了个人 AK、私钥、签名密码、本机路径配置、缓存和构建输出。

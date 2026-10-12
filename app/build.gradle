@@ -1,0 +1,146 @@
+plugins {
+    id "com.android.application"
+    // 谷歌官方推荐的用于隐藏地图 KEY 的插件 https://developers.google.com/maps/documentation/places/android-sdk/secrets-gradle-plugin?hl=zh-cn
+    id "com.google.android.libraries.mapsplatform.secrets-gradle-plugin"
+}
+
+// Signing secrets are loaded separately so the maps secrets plugin cannot embed them in BuildConfig.
+def personalSigning = new Properties()
+def personalSigningFile = rootProject.file('signing.properties')
+if (!personalSigningFile.exists()) {
+    throw new GradleException('Create signing.properties from signing.properties.example and supply your own keystore.')
+}
+personalSigningFile.withInputStream { personalSigning.load(it) }
+['storeFile', 'storePassword', 'keyAlias', 'keyPassword'].each { field ->
+    if (!personalSigning.getProperty(field)) {
+        throw new GradleException("Missing signing property: ${field}")
+    }
+}
+
+android {
+    ndkVersion = '26.2.11394342'
+    compileSdk = 36
+    buildToolsVersion = '36.0.0'
+    namespace = 'com.zcshou.gogogo'
+
+    signingConfigs {
+        debug {
+            storeFile rootProject.file(personalSigning.getProperty('storeFile'))
+            storePassword personalSigning.getProperty('storePassword')
+            keyAlias personalSigning.getProperty('keyAlias')
+            keyPassword personalSigning.getProperty('keyPassword')
+        }
+        release {
+            storeFile rootProject.file(personalSigning.getProperty('storeFile'))
+            storePassword personalSigning.getProperty('storePassword')
+            keyAlias personalSigning.getProperty('keyAlias')
+            keyPassword personalSigning.getProperty('keyPassword')
+        }
+    }
+
+    defaultConfig {
+        applicationId "com.zcshou.gogogo"
+        minSdkVersion 27
+        //noinspection ExpiredTargetSdkVersion
+        targetSdkVersion 32
+        versionCode 1126
+        versionName '1.12.3-youbiao.1'
+        buildConfigField 'boolean', 'ENABLE_UPSTREAM_UPDATES', 'false'
+        testInstrumentationRunner = providers.gradleProperty('testRunner').getOrElse('androidx.test.runner.AndroidJUnitRunner')
+        resourceConfigurations += ['zh', 'zh-rCN', 'en', 'en-rUS']
+        ndk {
+            //noinspection ChromeOsAbiSupport
+            abiFilters "arm64-v8a"
+        }
+        signingConfig = signingConfigs.release
+    }
+
+    buildTypes {
+        release {
+            // Enables code shrinking, obfuscation, and optimization for only
+            // your project's release build type.
+            minifyEnabled = true
+
+            // Enables resource shrinking, which is performed by the
+            // Android Gradle plugin.
+            shrinkResources = true
+
+            // Includes the default ProGuard rules files that are packaged with
+            // the Android Gradle plugin. To learn more, go to the section about
+            // R8 configuration files.
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+
+            signingConfig = signingConfigs.release
+            multiDexEnabled = true
+        }
+        debug {
+            signingConfig = signingConfigs.debug
+        }
+    }
+
+    // 要存取 secret value 必須要使用到一個 BuildScript 的類別，默认会从 local.properties 中获取
+    buildFeatures {
+        buildConfig = true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    packagingOptions {
+        jniLibs {
+            excludes += ['lib/armeabi/**']
+        }
+        resources {
+            excludes += ['lib/armeabi/**']
+        }
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
+    }
+
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
+    // 指定输出的可执行程序的名字
+    applicationVariants.configureEach { variant ->
+        variant.outputs.configureEach { output ->
+            def outputFile = output.outputFile
+            if (outputFile != null && outputFile.name.endsWith('.apk')) {
+                def fileName
+                if (variant.buildType.name == 'release') {
+                    fileName = "Youbiao_${defaultConfig.versionName}_arm64-v8a_release.apk"
+                } else {
+                    fileName = "Youbiao_${defaultConfig.versionName}_arm64-v8a_debug.apk"
+                }
+                outputFileName=fileName
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    // AppCompat 1.5.1 开始显式依赖于 Lifecycle 2.5.1 和 SavedState 1.2.0
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1'
+    implementation 'androidx.appcompat:appcompat:1.5.1'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.preference:preference:1.2.1'
+    implementation 'com.google.android.material:material:1.7.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.elvishew:xlog:1.11.1'
+    implementation 'io.noties.markwon:core:4.6.2'
+    implementation files('libs/BaiduLBS_Android.jar')
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+    androidTestImplementation 'androidx.test:runner:1.7.0'
+    androidTestImplementation('androidx.test.espresso:espresso-core:3.7.0', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+}
